@@ -11,10 +11,11 @@
 #include "INS_task.h"
 #include "main.h"
 #include "bsp_delay.h"
+#include "I2C_Task.h"
 
 #define FLASH_WRITE_BUF_LENGTH (sizeof(head_cali_t)+sizeof(imu_cali_t) * 3 + CALI_LIST_LENGTH * 4) // name and is_cali_Done
 #define imu_start_buzzer()     buzzer_on(31, 19999)
-#define imu_cali_done()        buzzer_calidone(15, 19999)
+#define imu_cali_done()        Cali_Complete_Buzzer()
 #define cali_done_buzzer()     buzzer_off()
 
 extern TIM_HandleTypeDef htim4;
@@ -59,44 +60,45 @@ const uint8_t GYRO_FLAG    = 2;
 uint32_t rc_cmd_systemTick = 0;
 uint16_t buzzer_time       = 0;
 uint8_t  rc_action_flag    = 0;
-static uint8_t calibration_done = 0;
 uint32_t cali_flag;
-void calibrate_task()
+osThreadId local_Thread_Id;
+
+void calibrate_task(void const *pvParameters)
 {
-    static uint8_t i = 0;
-    while (1)
-    {
-			  cali_flag++;
-        RC_cmd_to_calibrate();
-        for (i = 0; i < CALI_LIST_LENGTH; i++)
-        {
-					//如果需要校准
-            if (cali_sensor[i].cali_cmd)
-            {
-							// 如果存在函数指针 则执行
-                if (cali_sensor[i].cali_hook != NULL)
-                {
-
-                    if (cali_sensor[i].cali_hook(cali_sensor_buf[i], CALI_FUNC_CMD_ON))
-                    {
-                        //done
-                        cali_sensor[i].name[0] = cali_name[i][0];
-                        cali_sensor[i].name[1] = cali_name[i][1];
-                        cali_sensor[i].name[2] = cali_name[i][2];
-                        //set 0x55
-                        cali_sensor[i].cali_done = CALIED_FLAG;
-
-                        cali_sensor[i].cali_cmd = 0;
-                        //write
-                        cali_data_write();
-                    }
-                }
-            }
-        }
-				delay_ms(1);
-				if(calibration_done)
-					break;
-        //osDelay(CALIBRATE_CONTROL_TIME);
+	static uint8_t i = 0;
+	local_Thread_Id = osThreadGetId();
+	while (1)
+	{
+		cali_flag++;
+		RC_cmd_to_calibrate();
+		for (i = 0; i < CALI_LIST_LENGTH; i++)
+		{
+		//如果需要校准
+			if (cali_sensor[i].cali_cmd)
+			{
+				// 如果存在函数指针 则执行
+				if (cali_sensor[i].cali_hook != NULL)
+				{
+					if (cali_sensor[i].cali_hook(cali_sensor_buf[i], CALI_FUNC_CMD_ON))
+					{
+						//done
+						cali_sensor[i].name[0] = cali_name[i][0];
+						cali_sensor[i].name[1] = cali_name[i][1];
+						cali_sensor[i].name[2] = cali_name[i][2];
+						//set 0x55
+						cali_sensor[i].cali_done = CALIED_FLAG;
+						cali_sensor[i].cali_cmd = 0;
+						//write
+						cali_data_write();
+						
+						i2c_task();
+						osThreadTerminate(local_Thread_Id);
+			      osThreadYield ();
+					}
+				}
+			}
+		}
+		osDelay(CALIBRATE_CONTROL_TIME);
 #if INCLUDE_uxTaskGetStackHighWaterMark
         calibrate_task_stack = uxTaskGetStackHighWaterMark(NULL);
 #endif
@@ -105,91 +107,69 @@ void calibrate_task()
 
 static void RC_cmd_to_calibrate(void)
 {
-	  static uint8_t  i;
-    //if something is calibrating, return
-    //如果已经在校准，就返回
-    for (i = 0; i < CALI_LIST_LENGTH; i++)
-    {
-        if (cali_sensor[i].cali_cmd)
-        {
-            buzzer_time = 0;
-            rc_cmd_time = 0;
-            rc_action_flag = 0;
-
-            return;
-        }
+	static uint8_t  i;
+	//if something is calibrating, return
+	//如果已经在校准，就返回
+	for (i = 0; i < CALI_LIST_LENGTH; i++)
+	{
+		if (cali_sensor[i].cali_cmd)
+		{
+			buzzer_time = 0;
+			rc_cmd_time = 0;
+			rc_action_flag = 0;
+			return;
+		}
+	}
+	//启动校准
+	//听到高频之后转换
+	rc_cmd_time ++;
+	if (rc_action_flag == 0 && rc_cmd_time > CMD_LONG_TIME)
+	{
+		rc_action_flag = BEGIN_FLAG;
+		rc_cmd_systemTick = xTaskGetTickCount();
+		rc_cmd_time = 0;
+  }
+	else if (rc_action_flag == GYRO_FLAG && rc_cmd_time > CMD_LONG_TIME)
+	{
+		//gyro cali
+		rc_action_flag = 0;
+		rc_cmd_time = 0;
+		cali_sensor[CALI_GYRO].cali_cmd = 1;
+		//update control temperature
+		head_cali.temperature = (int8_t)(cali_get_mcu_temperature()) + 10;
+		if (head_cali.temperature > (int8_t)(GYRO_CONST_MAX_TEMP))
+		{
+			head_cali.temperature = (int8_t)(GYRO_CONST_MAX_TEMP);
     }
-
-		//启动校准
-		//听到高频之后转换
-    if (rc_action_flag == 0 && rc_cmd_time > RC_CMD_LONG_TIME)
-    {
-      rc_cmd_systemTick = HAL_GetTick();
-      rc_action_flag = BEGIN_FLAG;
-      rc_cmd_time = 0;
-    }
-    else if (rc_action_flag == GYRO_FLAG && rc_cmd_time > RC_CMD_LONG_TIME)
-    {
-        //gyro cali
-      rc_action_flag = 0;
-      rc_cmd_time = 0;
-      cali_sensor[CALI_GYRO].cali_cmd = 1;
-      //update control temperature
-      head_cali.temperature = (int8_t)(cali_get_mcu_temperature()) + 10;
-      if (head_cali.temperature > (int8_t)(GYRO_CONST_MAX_TEMP))
-      {
-        head_cali.temperature = (int8_t)(GYRO_CONST_MAX_TEMP);
-      }
-				
-				//先关掉蜂鸣器
-		  cali_done_buzzer();
-    }
-
-    if ((calibrate_RC->rc.ch[0] < -RC_CALI_VALUE_HOLE) && (calibrate_RC->rc.ch[1] < -RC_CALI_VALUE_HOLE) && (calibrate_RC->rc.ch[2] > RC_CALI_VALUE_HOLE) && (calibrate_RC->rc.ch[3] < -RC_CALI_VALUE_HOLE) 
-			&& (switch_is_down(calibrate_RC->rc.s[0])) && (switch_is_down(calibrate_RC->rc.s[1])) && (rc_action_flag == 0))
-    {
-        //两个摇杆打成 \../,保持2s
-        rc_cmd_time++;
-    }
-    else if (calibrate_RC->rc.ch[0] > RC_CALI_VALUE_HOLE && calibrate_RC->rc.ch[1] < -RC_CALI_VALUE_HOLE && calibrate_RC->rc.ch[2] < -RC_CALI_VALUE_HOLE && calibrate_RC->rc.ch[3] < -RC_CALI_VALUE_HOLE 
-			&& switch_is_down(calibrate_RC->rc.s[0]) && switch_is_down(calibrate_RC->rc.s[1]) && rc_action_flag != 0)
-    {
-        //two rocker set to ./\., hold for 2 seconds
-        rc_cmd_time++;
-        rc_action_flag = GYRO_FLAG;
-    }
-    else
-    {
-        rc_cmd_time = 0;
-    }
-
-    calibrate_systemTick = HAL_GetTick();
+		//先关掉蜂鸣器
+		cali_done_buzzer();
+	}
+	
+	calibrate_systemTick = xTaskGetTickCount();
    
-    if (calibrate_systemTick - rc_cmd_systemTick > CALIBRATE_END_TIME)
-    {
-        //over 20 seconds, end
-        //超过20s,停止
-      rc_action_flag = 0;
-      return;
-    }
-    else if ((calibrate_systemTick - rc_cmd_systemTick > 0) && (rc_cmd_systemTick != 0) && (rc_action_flag != 0))
-    {
-      imu_start_buzzer();
-    }
-
-    if (rc_action_flag != 0)
-    {
-      buzzer_time++;
-    }
-    
-    if (buzzer_time > RC_CALI_BUZZER_CYCLE_TIME && rc_action_flag != 0)
-    {
-      buzzer_time = 0;
-    }
-    if (buzzer_time > RC_CALI_BUZZER_PAUSE_TIME && rc_action_flag != 0)
-    {
-      buzzer_off();
-    }
+	if (calibrate_systemTick - rc_cmd_systemTick > GYRO_CALIBRATE_TIME)
+	{
+		rc_action_flag = 0;
+		return;
+	}
+	else if ((calibrate_systemTick - rc_cmd_systemTick > 0) && (rc_cmd_systemTick != 0) && (rc_action_flag != 0))
+	{
+		imu_start_buzzer();
+		rc_action_flag = GYRO_FLAG;
+	}
+	
+	if (rc_action_flag != 0)
+	{
+		buzzer_time++;
+	}
+	if (buzzer_time > RC_CALI_BUZZER_CYCLE_TIME && rc_action_flag != 0)
+  {
+		buzzer_time = 0;
+  }
+	if (buzzer_time > RC_CALI_BUZZER_PAUSE_TIME && rc_action_flag != 0)
+	{
+		buzzer_off();
+	}
 }
 
 
@@ -239,8 +219,7 @@ void cali_param_init(void)
       }
     }
 	}
-	
-  calibrate_RC = get_remote_ctrl_point_cali();
+
 	HAL_TIM_Base_Start(&htim4);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
 	
@@ -341,13 +320,11 @@ static bool_t cali_gyro_hook(uint32_t* cali, bool_t cmd)
     {
       count_time = 0;
 			imu_cali_done();
-      gyro_cali_enable_control();
-			calibration_done = 1;
       return 1;
     }
     else
     {
-      gyro_cali_disable_control(); //disable the remote control to make robot no move     
+     //disable the remote control to make robot no move     
       return 0;
     }
 	}

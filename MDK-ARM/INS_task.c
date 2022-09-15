@@ -145,6 +145,7 @@ fp32 INS_quat[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 fp32 INS_angle[3] = {0.0f, 0.0f, 0.0f};      //euler angle, unit rad.欧拉角 单位 rad
 
 int ins_task_flag;
+int test;
 
 /**
   * @brief          imu任务, 初始化 bmi088, ist8310, 计算欧拉角
@@ -578,6 +579,7 @@ void DMA2_Stream0_IRQHandler(void)
 					  //UPDATE_SET_FLAG++;
             gyro_update_flag &= ~(1 << IMU_UPDATE_SHFITS);
             gyro_update_flag |= (1 << IMU_NOTIFY_SHFITS);
+					test++;
             __HAL_GPIO_EXTI_GENERATE_SWIT(GPIO_PIN_0);
         }
     }

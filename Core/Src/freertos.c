@@ -60,7 +60,6 @@ osThreadId testHandle;
 osThreadId ServoTaskHandle;
 osThreadId IMUTaskHandle;
 osThreadId ModuleMotorHandle;
-osThreadId I2CTaskHandle;
 osThreadId calibrate_task_handle;
 /* USER CODE END FunctionPrototypes */
 
@@ -128,6 +127,9 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
 	
@@ -140,11 +142,8 @@ void MX_FREERTOS_Init(void) {
 	osThreadDef(ModuleMotor, motor_m2006_task, osPriorityAboveNormal, 0, 512);
   ModuleMotorHandle = osThreadCreate(osThread(ModuleMotor), NULL);
 	
-	osThreadDef(I2CTASK, i2c_task, osPriorityHigh, 0, 1024);
-	I2CTaskHandle = osThreadCreate(osThread(I2CTASK), NULL);
-	
-	//osThreadDef(cali, calibrate_task, osPriorityNormal, 0, 128);
-  //calibrate_task_handle = osThreadCreate(osThread(cali), NULL);
+	osThreadDef(cali, calibrate_task, osPriorityNormal, 0, 128);
+  calibrate_task_handle = osThreadCreate(osThread(cali), NULL);
 	
   /* USER CODE END RTOS_THREADS */
 
