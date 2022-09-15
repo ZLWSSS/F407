@@ -116,6 +116,7 @@ void motor_m2006_task(void const *pvParameters)
 	
 	while(1)
 	{
+		MOTOR_TASK_FLAG++;
 		M2006_feedback_update();
 		//Speed Mode
 		if(switch_is_down(M2006_Control[0].m2006_rc->rc.s[0]))

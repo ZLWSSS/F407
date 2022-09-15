@@ -1,12 +1,23 @@
-/***************************************************
- * @brief   （1）部分电器件控制代码取自dji，基于stm32F407IGHx芯片
-            （2）调试代码时要将i2c任务注释，否则会出错。 
-						（3）陀螺仪校准：遥控器先打成\/,听到蜂鸣器报警后打成/\.等待蜂鸣器滴滴后完成。
-						（4）右边扳机调至最下方时使M2006电机失效。
- * @date    2022/7/3
- * @author  Lingwei
-****************************************************/
-
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
+  * All rights reserved.</center></h2>
+  *
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
 #include "adc.h"
@@ -30,6 +41,7 @@
 #include "Motor_M2006_Task.h"
 #include "calibrate_task.h"
 #include "bsp_adc.h"
+#include "I2C_Task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -114,10 +126,14 @@ int main(void)
 	cali_param_init();
 	imu_pwm_init();
 	init_vrefint_reciprocal();
+	
+	MX_FREERTOS_Init();
+	
+	i2c_task();
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init();
+
   /* Start scheduler */
   osKernelStart();
 

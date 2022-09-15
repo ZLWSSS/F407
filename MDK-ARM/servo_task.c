@@ -14,6 +14,7 @@ FeedBack_SMBL40_Servo Servo_SM40BL[4];
 FeedBack_STS3032_Servo Servo_STS3032[4];
 extern I2C_RX_COMMAND_t I2C_RX_COMMAND;
 Move_Type COMMAND_MOVE;
+int servo_task_flag;
 
 static void parameter_init_SMB40L(FeedBack_SMBL40_Servo* servo,
 	                      int ID,
@@ -84,6 +85,7 @@ void servo_task(void const *pvParameters)
 
 	while(1)
 	{
+		servo_task_flag++;
 		if(CONTROL_SERVO_BY_RC)
 		{
 			// 这里没有办法看有没有到目的位置，只有对比前后位置是否相同来判断是否到达目标位置。

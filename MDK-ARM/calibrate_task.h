@@ -34,7 +34,7 @@
 #define CALIED_FLAG             0x55                // means it has been calibrated
 //you have 20 seconds to calibrate by remote control. 有20s可以用遥控器进行校准
 #define GYRO_CALIBRATE_TIME         20000
-#define RC_CMD_LONG_TIME        1000
+#define RC_CMD_LONG_TIME        200
 #define RC_CALI_VALUE_HOLE      600 
 #define CALIBRATE_END_TIME      10000
 
@@ -80,7 +80,7 @@ typedef struct
 extern void cali_param_init(void);
 extern int8_t get_control_temperature(void);
 extern void get_flash_latitude(float *latitude);
-extern void calibrate_task(void);
+void calibrate_task(void const *pvParameters);
 #endif
 
 

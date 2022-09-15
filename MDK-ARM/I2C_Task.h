@@ -3,7 +3,7 @@
 
 #include "UPBOARD_IIC.h"
 
-extern void i2c_task(void const *pvParameters);
+void i2c_task(void);
 void I2C_INIT(void);
 
 #endif
