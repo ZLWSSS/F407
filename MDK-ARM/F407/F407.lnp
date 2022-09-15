@@ -48,7 +48,6 @@
 "f407\heap_4.o"
 "f407\port.o"
 "f407\bsp_can.o"
-"f407\bsp_i2c.o"
 "f407\bsp_spi.o"
 "f407\bsp_imu_pwm.o"
 "f407\bsp_rc.o"

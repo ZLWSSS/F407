@@ -3,5 +3,6 @@
 #include "struct_typedef.h"
 extern void buzzer_on(uint16_t psc, uint16_t pwm);
 extern void buzzer_off(void);
-extern void buzzer_calidone(uint16_t psc, uint16_t pwm);
+
+void Cali_Complete_Buzzer(void);
 #endif
