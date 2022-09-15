@@ -196,22 +196,27 @@
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>i2c_flag</ItemText>
+          <ItemText>I2C_RX_COMMAND,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
           <WinNumber>1</WinNumber>
-          <ItemText>I2C_RX_COMMAND,0x0A</ItemText>
+          <ItemText>ins_task_flag,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>10</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ins_task_flag</ItemText>
+          <ItemText>test,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
           <WinNumber>1</WinNumber>
-          <ItemText>test,0x0A</ItemText>
+          <ItemText>I2C_TASK_RX_FLAG,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>12</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>I2C_TASK_TX_FLAG,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>
